@@ -2348,7 +2348,6 @@ sds genRedisInfoString(char *section) {
     time_t uptime = server.unixtime-server.stat_starttime;
     int j, numcommands;
     struct rusage self_ru, c_ru;
-    unsigned long lol, bib;
     int allsections = 0, defsections = 0;
     int sections = 0;
 
@@ -2359,7 +2358,6 @@ sds genRedisInfoString(char *section) {
 
     getrusage(RUSAGE_SELF, &self_ru);
     getrusage(RUSAGE_CHILDREN, &c_ru);
-    getClientsMaxBuffers(&lol,&bib);
 
     /* Server */
     if (allsections || defsections || !strcasecmp(section,"server")) {
@@ -2423,15 +2421,23 @@ sds genRedisInfoString(char *section) {
 
     /* Clients */
     if (allsections || defsections || !strcasecmp(section,"clients")) {
+        unsigned long lol, bib, bob;
+        char bob_hmem[64];
         if (sections++) info = sdscat(info,"\r\n");
+
+        getClientsMaxBuffers(&lol,&bib,&bob);
+
+        bytesToHuman(bob_hmem,bob);
         info = sdscatprintf(info,
             "# Clients\r\n"
             "connected_clients:%lu\r\n"
             "client_longest_output_list:%lu\r\n"
             "client_biggest_input_buf:%lu\r\n"
+            "output_buffers_used_memory:%lu\r\n"
+            "output_buffers_used_memory_human:%s\r\n"
             "blocked_clients:%d\r\n",
             listLength(server.clients)-listLength(server.slaves),
-            lol, bib,
+            lol, bib, bob, bob_hmem,
             server.bpop_blocked_clients);
     }
 
