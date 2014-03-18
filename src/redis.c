@@ -2961,6 +2961,8 @@ int freeMemoryIfNeeded(void) {
         mem_used -= aofRewriteBufferSize();
     }
 
+    mem_used -= allClientsOutputBufferMemoryUsage();
+
     /* Check if we are over the memory limit. */
     if (mem_used <= server.maxmemory) return REDIS_OK;
 
