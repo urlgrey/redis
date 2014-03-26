@@ -3154,7 +3154,7 @@ sds genRedisInfoString(char *section) {
             sds name = dictGetKey(de);
             struct redisModuleInfo *modinfo = dictGetVal(de);
             int cmd_count = modinfo->cmds->len;
-            char **cmds = zmalloc(sizeof(*cmds)*cmd_count);
+            char *cmds[cmd_count];
             int i = 0;
             sds cmds_joined;
 
@@ -3163,7 +3163,6 @@ sds genRedisInfoString(char *section) {
                 cmds[i++] = ln->value;
             }
             cmds_joined = sdsjoin(cmds, cmd_count, ",");
-            zfree(cmds);
 
             info = sdscatprintf(info,
                 "module_%s:filename=%s,first_loaded=%lu,"
