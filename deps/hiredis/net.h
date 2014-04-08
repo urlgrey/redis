@@ -42,6 +42,8 @@
 int redisCheckSocketError(redisContext *c, int fd);
 int redisContextSetTimeout(redisContext *c, struct timeval tv);
 int redisContextConnectTcp(redisContext *c, const char *addr, int port, struct timeval *timeout);
+int redisContextConnectBindTcp(redisContext *c, const char *addr, int port,
+    struct timeval *timeout, char *source_addr);
 int redisContextConnectUnix(redisContext *c, const char *path, struct timeval *timeout);
 
 #endif
