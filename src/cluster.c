@@ -4380,6 +4380,11 @@ void migrateCommand(redisClient *c) {
     rio cmd, payload;
     int retry_num = 0;
 
+    if (server.noreplication) {
+        addReplyError(c,"MIGRATE denied because disable-replication is set.");
+        return;
+    }
+
 try_again:
     /* Initialization */
     copy = 0;
