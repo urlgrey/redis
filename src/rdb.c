@@ -40,6 +40,16 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 
+#define rdbExitReportCorruptRDB(reason) rdbCheckThenExit(reason, __LINE__);
+
+void rdbCheckThenExit(char *reason, int where) {
+    redisLog(REDIS_WARNING, "Corrupt RDB detected at rdb.c:%d (%s). "
+        "Running 'redis-check-rdb --dbfilename %s'",
+        where, reason, server.rdb_filename);
+    redis_check_rdb(server.rdb_filename);
+    exit(1);
+}
+
 static int rdbWriteRaw(rio *rdb, void *p, size_t len) {
     if (rdb && rioWrite(rdb,p,len) == 0)
         return -1;
@@ -182,7 +192,7 @@ robj *rdbLoadIntegerObject(rio *rdb, int enctype, int encode) {
         val = (int32_t)v;
     } else {
         val = 0; /* anti-warning */
-        redisPanic("Unknown RDB integer encoding type");
+        rdbExitReportCorruptRDB("Unknown RDB integer encoding type");
     }
     if (encode)
         return createStringObjectFromLongLong(val);
@@ -345,7 +355,7 @@ robj *rdbGenericLoadStringObject(rio *rdb, int encode) {
         case REDIS_RDB_ENC_LZF:
             return rdbLoadLzfStringObject(rdb);
         default:
-            redisPanic("Unknown RDB encoding type");
+            rdbExitReportCorruptRDB("Unknown RDB encoding type");
         }
     }
 
@@ -819,7 +829,7 @@ void rdbRemoveTempFile(pid_t childpid) {
 /* Load a Redis object of the specified type from the specified file.
  * On success a newly allocated object is returned, otherwise NULL. */
 robj *rdbLoadObject(int rdbtype, rio *rdb) {
-    robj *o, *ele, *dec;
+    robj *o = NULL, *ele, *dec;
     size_t len;
     unsigned int i;
 
@@ -989,12 +999,13 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
 
             /* Add pair to hash table */
             ret = dictAdd((dict*)o->ptr, field, value);
-            redisAssert(ret == DICT_OK);
+            if (ret == DICT_ERR) {
+                rdbExitReportCorruptRDB("Duplicate keys detected");
+            }
         }
 
         /* All pairs should be read by now */
         redisAssert(len == 0);
-
     } else if (rdbtype == REDIS_RDB_TYPE_HASH_ZIPMAP  ||
                rdbtype == REDIS_RDB_TYPE_LIST_ZIPLIST ||
                rdbtype == REDIS_RDB_TYPE_SET_INTSET   ||
@@ -1070,11 +1081,11 @@ robj *rdbLoadObject(int rdbtype, rio *rdb) {
                     hashTypeConvert(o, REDIS_ENCODING_HT);
                 break;
             default:
-                redisPanic("Unknown encoding");
+                rdbExitReportCorruptRDB("Unknown encoding");
                 break;
         }
     } else {
-        redisPanic("Unknown object type");
+        rdbExitReportCorruptRDB("Unknown object type");
     }
     return o;
 }
