@@ -67,9 +67,9 @@ typedef struct dictType {
  * implement incremental rehashing, for the old to the new table. */
 typedef struct dictht {
     dictEntry **table;
-    unsigned long size;
-    unsigned long sizemask;
-    unsigned long used;
+    uint64_t size;
+    uint64_t sizemask;
+    uint64_t used;
 } dictht;
 
 typedef struct dict {
@@ -86,7 +86,7 @@ typedef struct dict {
  * should be called while iterating. */
 typedef struct dictIterator {
     dict *d;
-    int table, index, safe;
+    int64_t table, index, safe;
     dictEntry *entry, *nextEntry;
     long long fingerprint; /* unsafe iterator fingerprint for misuse detection */
 } dictIterator;

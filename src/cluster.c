@@ -3643,7 +3643,7 @@ void clusterCommand(redisClient *c) {
             "cluster_slots_ok:%d\r\n"
             "cluster_slots_pfail:%d\r\n"
             "cluster_slots_fail:%d\r\n"
-            "cluster_known_nodes:%lu\r\n"
+            "cluster_known_nodes:%llu\r\n"
             "cluster_size:%d\r\n"
             "cluster_current_epoch:%llu\r\n"
             "cluster_my_epoch:%llu\r\n"

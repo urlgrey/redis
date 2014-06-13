@@ -2649,10 +2649,10 @@ sds genRedisInfoString(char *section) {
             "evicted_keys:%lld\r\n"
             "keyspace_hits:%lld\r\n"
             "keyspace_misses:%lld\r\n"
-            "pubsub_channels:%ld\r\n"
+            "pubsub_channels:%lld\r\n"
             "pubsub_patterns:%lu\r\n"
             "latest_fork_usec:%lld\r\n"
-            "migrate_cached_sockets:%ld\r\n",
+            "migrate_cached_sockets:%lld\r\n",
             server.stat_numconnections,
             server.stat_numcommands,
             getOperationsPerSecond(),
