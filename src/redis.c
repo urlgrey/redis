@@ -3214,7 +3214,7 @@ sds genRedisInfoString(char *section) {
     }
 
     /* loaded modules */
-    if (allsections || !strcasecmp(section,"modules")) {
+    if (allsections || defsections || !strcasecmp(section,"modules")) {
         dictIterator *di = dictGetIterator(server.modules);
         dictEntry *de;
 
