@@ -443,6 +443,7 @@ void syncCommand(redisClient *c) {
     if (!strcasecmp(c->argv[0]->ptr,"psync")) {
         if (masterTryPartialResynchronization(c) == REDIS_OK) {
             server.stat_sync_partial_ok++;
+            server.update_proctitle = 1;
             return; /* No full resync needed, return. */
         } else {
             char *master_runid = c->argv[1]->ptr;
@@ -511,6 +512,7 @@ void syncCommand(redisClient *c) {
     listAddNodeTail(server.slaves,c);
     if (listLength(server.slaves) == 1 && server.repl_backlog == NULL)
         createReplicationBacklog();
+    server.update_proctitle = 1;
     return;
 }
 
@@ -849,6 +851,7 @@ void readSyncBulkPayload(aeEventLoop *el, int fd, void *privdata, int mask) {
         if (server.master->reploff == -1)
             server.master->flags |= REDIS_PRE_PSYNC;
         redisLog(REDIS_NOTICE, "MASTER <-> SLAVE sync: Finished with success");
+        server.update_proctitle = 1;
         /* Restart the AOF subsystem now that we finished the sync. This
          * will trigger an AOF rewrite, and when done will start appending
          * to the new file. */
@@ -1065,6 +1068,7 @@ void syncWithMaster(aeEventLoop *el, int fd, void *privdata, int mask) {
         /* Send the PING, don't check for errors at all, we have the timeout
          * that will take care about this. */
         syncWrite(fd,"PING\r\n",6,100);
+        server.update_proctitle = 1;
         return;
     }
 
@@ -1183,12 +1187,14 @@ void syncWithMaster(aeEventLoop *el, int fd, void *privdata, int mask) {
     server.repl_transfer_fd = dfd;
     server.repl_transfer_lastio = server.unixtime;
     server.repl_transfer_tmpfile = zstrdup(tmpfile);
+    server.update_proctitle = 1;
     return;
 
 error:
     close(fd);
     server.repl_transfer_s = -1;
     server.repl_state = REDIS_REPL_CONNECT;
+    server.update_proctitle = 1;
     return;
 }
 
@@ -1324,6 +1330,19 @@ void slaveofCommand(redisClient *c) {
     addReply(c,shared.ok);
 }
 
+char *slaveDesc(void) {
+    char *slavestate;
+    switch(server.repl_state) {
+    case REDIS_REPL_NONE: slavestate = "none"; break;
+    case REDIS_REPL_CONNECT: slavestate = "connect"; break;
+    case REDIS_REPL_CONNECTING: slavestate = "connecting"; break;
+    case REDIS_REPL_RECEIVE_PONG: /* see next */
+    case REDIS_REPL_TRANSFER: slavestate = "sync"; break;
+    case REDIS_REPL_CONNECTED: slavestate = "connected"; break;
+    default: slavestate = "unknown"; break;
+    }
+    return slavestate;
+}
 /* ROLE command: provide information about the role of the instance
  * (master or slave) and additional information related to replication
  * in an easy to process format. */
@@ -1353,22 +1372,11 @@ void roleCommand(redisClient *c) {
         }
         setDeferredMultiBulkLength(c,mbcount,slaves);
     } else {
-        char *slavestate = NULL;
-
         addReplyMultiBulkLen(c,5);
         addReplyBulkCBuffer(c,"slave",5);
         addReplyBulkCString(c,server.masterhost);
         addReplyLongLong(c,server.masterport);
-        switch(server.repl_state) {
-        case REDIS_REPL_NONE: slavestate = "none"; break;
-        case REDIS_REPL_CONNECT: slavestate = "connect"; break;
-        case REDIS_REPL_CONNECTING: slavestate = "connecting"; break;
-        case REDIS_REPL_RECEIVE_PONG: /* see next */
-        case REDIS_REPL_TRANSFER: slavestate = "sync"; break;
-        case REDIS_REPL_CONNECTED: slavestate = "connected"; break;
-        default: slavestate = "unknown"; break;
-        }
-        addReplyBulkCString(c,slavestate);
+        addReplyBulkCString(c,slaveDesc());
         addReplyLongLong(c,server.master ? server.master->reploff : -1);
     }
 }
@@ -1752,6 +1760,7 @@ long long replicationGetSlaveOffset(void) {
 
 /* Replication cron function, called 1 time per second. */
 void replicationCron(void) {
+    int state_updated = 0;
     /* Non blocking connection timeout? */
     if (server.masterhost &&
         (server.repl_state == REDIS_REPL_CONNECTING ||
@@ -1760,6 +1769,7 @@ void replicationCron(void) {
     {
         redisLog(REDIS_WARNING,"Timeout connecting to the MASTER...");
         undoConnectWithMaster();
+        state_updated = 1;
     }
 
     /* Bulk transfer I/O timeout? */
@@ -1768,6 +1778,7 @@ void replicationCron(void) {
     {
         redisLog(REDIS_WARNING,"Timeout receiving bulk data from MASTER... If the problem persists try to set the 'repl-timeout' parameter in redis.conf to a larger value.");
         replicationAbortSyncTransfer();
+        state_updated = 1;
     }
 
     /* Timed out master when we are an already connected slave? */
@@ -1776,6 +1787,7 @@ void replicationCron(void) {
     {
         redisLog(REDIS_WARNING,"MASTER timeout: no data nor PING received...");
         freeClient(server.master);
+        state_updated = 1;
     }
 
     /* Check if we should connect to a MASTER */
@@ -1784,6 +1796,7 @@ void replicationCron(void) {
             server.masterhost, server.masterport);
         if (connectWithMaster() == REDIS_OK) {
             redisLog(REDIS_NOTICE,"MASTER <-> SLAVE sync started");
+            state_updated = 1;
         }
     }
 
@@ -1847,6 +1860,7 @@ void replicationCron(void) {
                         ip, slave->slave_listening_port);
                 }
                 freeClient(slave);
+                state_updated = 1;
             }
         }
     }
@@ -1879,4 +1893,6 @@ void replicationCron(void) {
 
     /* Refresh the number of slaves with lag <= min-slaves-max-lag. */
     refreshGoodSlavesCount();
+
+    if (state_updated) server.update_proctitle = 1;
 }

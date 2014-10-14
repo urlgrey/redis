@@ -130,6 +130,10 @@ typedef long long mstime_t; /* millisecond time type. */
 #define REDIS_BINDADDR_MAX 16
 #define REDIS_MIN_RESERVED_FDS 32
 #define REDIS_DEFAULT_LATENCY_MONITOR_THRESHOLD 0
+#define REDIS_DEFAULT_PROC_TITLE \
+    "{{executable}} {{config}} {{name}} " \
+    "{{ip0}}:{{port}} {{mode}} {{role}} {{state}}"
+#define REDIS_DEFAULT_SERVER_NAME ""
 
 #define ACTIVE_EXPIRE_CYCLE_LOOKUPS_PER_LOOP 20 /* Loopkups per loop. */
 #define ACTIVE_EXPIRE_CYCLE_FAST_DURATION 1000 /* Microseconds */
@@ -883,6 +887,11 @@ struct redisServer {
     int assert_line;
     int bug_report_start; /* True if bug report header was already logged. */
     int watchdog_period;  /* Software watchdog period in ms. 0 = off */
+    /* Process Title Formatting */
+    char *proctitle_format;
+    char *argv0;          /* Server's initial argv[0] */
+    char *name;           /* Name for server configured by the user */
+    int update_proctitle; /* Flag for serverCron() to update title */
 };
 
 typedef struct pubsubPattern {
@@ -994,7 +1003,7 @@ void getRandomHexChars(char *p, unsigned int len);
 uint64_t crc64(uint64_t crc, const unsigned char *s, uint64_t l);
 void exitFromChild(int retcode);
 size_t redisPopcount(void *s, long count);
-void redisSetProcTitle(char *title);
+void redisSetProcTitle(char *comment);
 
 /* networking.c -- Networking and Client related operations */
 redisClient *createClient(int fd);
@@ -1149,6 +1158,7 @@ void unblockClientWaitingReplicas(redisClient *c);
 int replicationCountAcksByOffset(long long offset);
 void replicationSendNewlineToMaster(void);
 long long replicationGetSlaveOffset(void);
+char *slaveDesc(void);
 
 /* Generic persistence functions */
 void startLoading(FILE *fp);
@@ -1327,6 +1337,7 @@ void clusterCron(void);
 void clusterPropagatePublish(robj *channel, robj *message);
 void migrateCloseTimedoutSockets(void);
 void clusterBeforeSleep(void);
+sds clusterSelfDesc(void);
 
 /* Sentinel */
 void initSentinelConfig(void);
@@ -1334,6 +1345,7 @@ void initSentinel(void);
 void sentinelTimer(void);
 char *sentinelHandleConfiguration(char **argv, int argc);
 void sentinelIsRunning(void);
+sds sentinelWatchingMasters(void);
 
 /* Scripting */
 void scriptingInit(void);

@@ -359,6 +359,7 @@ void clusterSaveConfigOrDie(int do_fsync) {
         redisLog(REDIS_WARNING,"Fatal: can't update cluster config file.");
         exit(1);
     }
+    server.update_proctitle = 1;
 }
 
 /* Lock the cluster config using flock(), and leaks the file descritor used to
@@ -3554,6 +3555,49 @@ sds clusterGenNodesDescription(int filter) {
     }
     dictReleaseIterator(di);
     return ci;
+}
+
+sds clusterSelfDesc(void) {
+    clusterNode *node = server.cluster->myself;
+
+    sds ci = sdscatprintf(sdsempty(), "(epoch: %llu", node->configEpoch);
+
+    if (node->numslaves)
+        ci = sdscatprintf(ci, "; replicas: %d", node->numslaves);
+
+    if (node->slaveof)
+        ci = sdscatprintf(ci, "; %s from %s:%d",
+            (node->link || node->flags & REDIS_NODE_MYSELF) ?
+            "replicating" : "disconnected",
+            server.masterhost, server.masterport);
+
+    if (node->numslots) {
+        ci = sdscat(ci, "; slots:");
+
+        if (node->slaveof) node = node->slaveof;
+
+        /* Slots served by this instance */
+        int start = -1, j;
+
+        for (j = 0; j < REDIS_CLUSTER_SLOTS; j++) {
+            int bit;
+            if ((bit = clusterNodeGetSlotBit(node,j)) != 0) {
+                if (start == -1) start = j;
+            }
+            if (start != -1 && (!bit || j == REDIS_CLUSTER_SLOTS-1)) {
+                if (bit && j == REDIS_CLUSTER_SLOTS-1) j++;
+
+                if (start == j-1) {
+                    ci = sdscatprintf(ci," %d",start);
+                } else {
+                    ci = sdscatprintf(ci," %d-%d",start,j-1);
+                }
+                start = -1;
+            }
+        }
+    }
+
+    return sdscatlen(ci, ")", 1);
 }
 
 /* -----------------------------------------------------------------------------
