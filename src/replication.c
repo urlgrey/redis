@@ -55,7 +55,7 @@ char *replicationGetSlaveName(redisClient *c) {
     buf[0] = '\0';
     if (anetPeerToString(c->fd,ip,sizeof(ip),NULL) != -1) {
         if (c->slave_listening_port)
-            snprintf(buf,sizeof(buf),"%s:%d",ip,c->slave_listening_port);
+            anetFormatIP(buf,sizeof(buf),ip,c->slave_listening_port);
         else
             snprintf(buf,sizeof(buf),"%s:<unknown-slave-port>",ip);
     } else {
@@ -478,7 +478,7 @@ void syncCommand(redisClient *c) {
         return;
     }
 
-    redisLog(REDIS_NOTICE,"Slave %s asks for synchronization",
+    redisLog(REDIS_NOTICE,"Slave asks for synchronization from %s",
         replicationGetSlaveName(c));
 
     /* Try a partial resynchronization if this is a PSYNC command.
@@ -754,7 +754,7 @@ void updateSlavesWaitingBgsave(int bgsaveerr, int type) {
             if (type == REDIS_RDB_CHILD_TYPE_SOCKET) {
                 putSlaveOnline(slave);
                 redisLog(REDIS_NOTICE,
-                    "Synchronization with slave %s succeeded (socket)",
+                    "Synchronization with slave succeeded (socket) from %s",
                         replicationGetSlaveName(slave));
             } else {
                 if (bgsaveerr != REDIS_OK) {
