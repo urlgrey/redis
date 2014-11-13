@@ -3524,6 +3524,8 @@ int main(int argc, char **argv) {
     if (argc == 3 && !strcasecmp(argv[1], "test")) {
         if (!strcasecmp(argv[2], "ziplist")) {
             return ziplistTest(argc, argv);
+        } else if (!strcasecmp(argv[2], "quicklist")) {
+            quicklistTest(argc, argv);
         } else if (!strcasecmp(argv[2], "intset")) {
             return intsetTest(argc, argv);
         } else if (!strcasecmp(argv[2], "zipmap")) {
