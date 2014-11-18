@@ -1,7 +1,6 @@
 start_server {
     tags {list ziplist}
     overrides {
-        "list-max-ziplist-value" 200000
         "list-max-ziplist-entries" 16
     }
 } {

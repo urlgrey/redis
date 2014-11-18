@@ -1438,7 +1438,6 @@ void initServerConfig(void) {
     server.hash_max_ziplist_entries = REDIS_HASH_MAX_ZIPLIST_ENTRIES;
     server.hash_max_ziplist_value = REDIS_HASH_MAX_ZIPLIST_VALUE;
     server.list_max_ziplist_entries = REDIS_LIST_MAX_ZIPLIST_ENTRIES;
-    server.list_max_ziplist_value = REDIS_LIST_MAX_ZIPLIST_VALUE;
     server.set_max_intset_entries = REDIS_SET_MAX_INTSET_ENTRIES;
     server.zset_max_ziplist_entries = REDIS_ZSET_MAX_ZIPLIST_ENTRIES;
     server.zset_max_ziplist_value = REDIS_ZSET_MAX_ZIPLIST_VALUE;
