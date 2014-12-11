@@ -1,0 +1,14 @@
+machine:
+  pre:
+    - sudo pip install awscli
+    - sudo apt-get install cmake
+test:
+  override:
+    - make
+deployment:
+  automerge:
+    branch: [master]
+    commands:
+      - tar -czf -C src redis-geo-x86_64-${CIRCLE_SHA1}.tar.gz redis-server redis-cli
+      - aws s3 cp redis-geo-x86_64-${CIRCLE_SHA1}.tar.gz s3://payphonehome-server-builds/${CIRCLE_BRANCH}/redis-geo-x86_64-${CIRCLE_SHA1}.tar.gz
+
